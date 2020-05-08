@@ -422,6 +422,27 @@ if ($enableAssetCooking -eq $true)
 		# Write to file
 		$defaultEngineContentNew | Set-Content $defaultEnginePath -NoNewline;
 		
+		# Package hack. TODO
+		#Rename-Item "$sdkPath/XComGame/Script/AkAudio.u" "AkAudio.u.bak" Crashes
+		#Rename-Item "$sdkPath/XComGame/Script/OnlineSubsystemSteamworks.u" "OnlineSubsystemSteamworks.u.bak" Crashes
+		#Rename-Item "$sdkPath/XComGame/Content/XCOM_2/Packages/GFx/gfxCommon.upk" "gfxCommon.upk.bak"
+		
+		# Non-TFC fix. TODO
+		#Rename-Item "$sdkPath\XComGame\Content\DLC\DLC_3\Packages\Cinematics\Scenes\CIN_SparkActivation.upk" "CIN_SparkActivation.upk.bak"
+		#Rename-Item "$sdkPath\XComGame\Content\DLC\TLE\Packages\Characters\Humans\TLE_CIN_Central_Sweater.upk" "TLE_CIN_Central_Sweater.upk.bak"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\Cinematics\Models\CIN_CmdrIncubationChamber.upk" "CIN_CmdrIncubationChamber.upk.bak"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\Cinematics\Models\CIN_CorpseSheet.upk" "CIN_CorpseSheet.upk.bak"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\Cinematics\Models\CIN_Jane.upk" "CIN_Jane.upk.bak"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\Cinematics\Scenes\CIN_Skyranger.upk" "CIN_Skyranger.upk.bak"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\Cinematics\Utilities\CIN_Dummy.upk" "CIN_Dummy.upk.bak"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\Cinematics\Utilities\CIN_Icons.upk" "CIN_Icons.upk.bak"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\Cinematics\Utilities\CIN_KismetIcons.upk" "CIN_KismetIcons.upk.bak"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\Cinematics\Utilities\CIN_Materials.upk" "CIN_Materials.upk.bak"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\FX\Cinematic\Holo_Cylinder\FX_CIN_Holo_Cylinder.upk" "FX_CIN_Holo_Cylinder.upk.bak"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\FX\Cinematic\Environment\FX_CIN_Environment.upk" "FX_CIN_Environment.upk.bak"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\FX\Cinematic\Holo_Globe\FX_CIN_Holo_Globe.upk" "FX_CIN_Holo_Globe.upk.bak"
+		#FX_CIN_Misc
+		
 		# Invoke cooker
 		
 		$mapsString = ""
@@ -438,7 +459,7 @@ if ($enableAssetCooking -eq $true)
 		$pinfo.FileName = "$sdkPath\binaries\Win64\XComGame.com"
 		#$pinfo.RedirectStandardOutput = $true
 		$pinfo.UseShellExecute = $false
-		$pinfo.Arguments = "CookPackages $mapsString -platform=pcconsole -skipmaps -modcook -TFCSUFFIX=$tfcSuffix -singlethread -unattended"
+		$pinfo.Arguments = "CookPackages $mapsString -platform=pcconsole -skipmaps -modcook -TFCSUFFIX=$tfcSuffix -singlethread -unattended -usermode"
 		$pinfo.WorkingDirectory = "$sdkPath/binaries/Win64"
 		$p = New-Object System.Diagnostics.Process
 		$p.StartInfo = $pinfo
@@ -457,6 +478,24 @@ if ($enableAssetCooking -eq $true)
 		
 		&"$selfScriptPath\junction.exe" -nobanner -accepteula -d "$sdkModsContentDir"
 		New-Item -Path $sdkModsContentDir -ItemType Directory
+		
+		# Undo packages hack. TODO
+		#Rename-Item "$sdkPath/XComGame/Content/XCOM_2/Packages/GFx/gfxCommon.upk.bak" "gfxCommon.upk"
+		
+		# Non-TFC fix. TODO
+		#Rename-Item "$sdkPath\XComGame\Content\DLC\DLC_3\Packages\Cinematics\Scenes\CIN_SparkActivation.upk.bak" "CIN_SparkActivation.upk"
+		#Rename-Item "$sdkPath\XComGame\Content\DLC\TLE\Packages\Characters\Humans\TLE_CIN_Central_Sweater.upk.bak" "TLE_CIN_Central_Sweater.upk"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\Cinematics\Models\CIN_CmdrIncubationChamber.upk.bak" "CIN_CmdrIncubationChamber.upk"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\Cinematics\Models\CIN_CorpseSheet.upk.bak" "CIN_CorpseSheet.upk"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\Cinematics\Models\CIN_Jane.upk.bak" "CIN_Jane.upk"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\Cinematics\Scenes\CIN_Skyranger.upk.bak" "CIN_Skyranger.upk"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\Cinematics\Utilities\CIN_Dummy.upk.bak" "CIN_Dummy.upk"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\Cinematics\Utilities\CIN_Icons.upk.bak" "CIN_Icons.upk"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\Cinematics\Utilities\CIN_KismetIcons.upk.bak" "CIN_KismetIcons.upk"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\Cinematics\Utilities\CIN_Materials.upk.bak" "CIN_Materials.upk"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\FX\Cinematic\Holo_Cylinder\FX_CIN_Holo_Cylinder.upk.bak" "FX_CIN_Holo_Cylinder.upk"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\FX\Cinematic\Environment\FX_CIN_Environment.upk.bak" "FX_CIN_Environment.upk"
+		#Rename-Item "$sdkPath\XComGame\Content\XCOM_2\Packages\FX\Cinematic\Holo_Globe\FX_CIN_Holo_Globe.upk.bak" "FX_CIN_Holo_Globe.upk"
 		
 		# Prepare the folder for cooked stuff
 		$stagingCookedDir = [io.path]::combine($stagingPath, 'CookedPCConsole')
