@@ -700,10 +700,6 @@ class BuildProject {
 			}
 			New-Junction $cookOutputDir $projectCookCacheDir
 
-			# "Inject" our assets into the SDK to make them visible to the cooker
-			Remove-Item $sdkModsContentDir
-			New-Junction $sdkModsContentDir "$($this.stagingPath)\ContentForCook"
-
 			if ($firstModCook) {
 				# First do a cook without our assets since gfxCommon.upk still get included in the cook, polluting the TFCs, depsite the config hacks
 
@@ -759,16 +755,6 @@ class BuildProject {
 					FailureMessage $_
 				}
 				
-			}
-			
-			try {
-				Remove-Junction $sdkModsContentDir
-				New-Item -Path $sdkModsContentDir -ItemType Directory
-				Write-Host "Restored $sdkModsContentDir"
-			}
-			catch {
-				FailureMessage "Failed to restore $sdkModsContentDir"
-				FailureMessage $_
 			}
 		}
 
@@ -828,7 +814,12 @@ class BuildProject {
 
 	[void]_InvokeAssetCooker ([string[]] $umapsToCook, [string] $engineIniAdditions) {
 		$defaultEngineContentNew = $this.defaultEngineContentOriginal
+
+		# Denote the beginning of our changes (this marker is used by _RunCookAssets to detect unfinished cook)
 		$defaultEngineContentNew = "$defaultEngineContentNew`n; HACKS FOR MOD ASSETS COOKING - $($this.modNameCanonical)"
+
+		# "Inject" our assets into the SDK to make them visible to the cooker
+		$defaultEngineContentNew = "$defaultEngineContentNew`n[Core.System]`n+Paths=$($this.stagingPath)\ContentForCook"
 
 		# Remove various default always seek free packages
 		# This will trump the rest of file content as it's all the way at the bottom
@@ -1140,7 +1131,7 @@ class ModcookReceiver : StdoutReceiver {
 		$permitLine = $true # Default to true in case there is something we don't handle
 
 		if ($outTxt.StartsWith("Adding package") -or $outTxt.StartsWith("Adding level") -or $outTxt.StartsWith("Adding script") -or $outTxt.StartsWith("GFx movie package")) {
-			if ($outTxt.Contains("\Mods\")) {
+			if ($outTxt.Contains("\Mods\") -or $outTxt.Contains("\ContentForCook\")) {
 				$permitLine = $true
 			} else {
 				$permitLine = $false
