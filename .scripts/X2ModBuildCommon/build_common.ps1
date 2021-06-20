@@ -42,7 +42,8 @@ class BuildProject {
 	[string] $defaultEnginePath
 	[string] $defaultEngineContentOriginal
 	[string] $assetsCookTfcSuffix
-
+	[string] $assetsCookCollectionMapsPath
+	[string] $contentForCookPath
 
 	BuildProject(
 		[string]$mod,
@@ -621,14 +622,14 @@ class BuildProject {
 		
 		$this.assetsCookTfcSuffix = "_$($this.modNameCanonical)_"
 		$projectCookCacheDir = [io.path]::combine($this.buildCachePath, 'PublishedCookedPCConsole')
+		$this.assetsCookCollectionMapsPath = [io.path]::combine($this.buildCachePath, 'CollectionMaps')
+		$this.contentForCookPath = "$($this.modSrcRoot)\ContentForCook"
 		
 		$this.defaultEnginePath = "$($this.sdkPath)/XComGame/Config/DefaultEngine.ini"
 		$this.defaultEngineContentOriginal = Get-Content $this.defaultEnginePath | Out-String
 		$engineIniAdditions = $this._BuildEngineIniAdditionsFromContentOptions()
 		
 		$cookOutputDir = [io.path]::combine($this.sdkPath, 'XComGame', 'Published', 'CookedPCConsole')
-		
-		$stagingContentForCook = "$($this.stagingPath)\ContentForCook"
 		
 		# First, we need to check that everything is ready for us to do these shenanigans
 		# This doesn't use locks, so it can break if multiple builds are running at the same time,
@@ -665,6 +666,11 @@ class BuildProject {
 			}
 		}
 
+		# Prep the folder for the collection maps
+		# Not the most efficient approach, but there are bigger time saves to be had
+		Remove-Item $this.assetsCookCollectionMapsPath -Force -Recurse -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
+		New-Item -ItemType "directory" -Path $this.assetsCookCollectionMapsPath
+
 		# Prepare the list of maps to cook
 		$mapsToCook = $this.contentOptions.sfMaps
 
@@ -673,10 +679,10 @@ class BuildProject {
 		foreach ($mapDef in $this.contentOptions.sfCollectionMaps) {
 			$mapsToCook += $mapDef.name
 
-			if ($null -eq (Get-ChildItem -Path $stagingContentForCook -Filter $mapDef.name -Recurse)) {
+			if ($null -eq (Get-ChildItem -Path $this.contentForCookPath -Filter $mapDef.name -Recurse)) {
 				# Important: we cannot use .umap extension here - git lfs (if in use) gets confused during git subtree add
 				# See https://github.com/X2CommunityCore/X2ModBuildCommon/wiki/Do-not-use-.umap-for-files-in-this-repo
-				Copy-Item "$global:buildCommonSelfPath\EmptyUMap" "$stagingContentForCook\$($mapDef.name).umap"
+				Copy-Item "$global:buildCommonSelfPath\EmptyUMap" "$($this.assetsCookCollectionMapsPath)\$($mapDef.name).umap"
 			}
 		}
 
@@ -813,7 +819,7 @@ class BuildProject {
 		$defaultEngineContentNew = "$defaultEngineContentNew`n; HACKS FOR MOD ASSETS COOKING - $($this.modNameCanonical)"
 
 		# "Inject" our assets into the SDK to make them visible to the cooker
-		$defaultEngineContentNew = "$defaultEngineContentNew`n[Core.System]`n+Paths=$($this.stagingPath)\ContentForCook"
+		$defaultEngineContentNew = "$defaultEngineContentNew`n[Core.System]`n+Paths=$($this.contentForCookPath)`n+Paths=$($this.assetsCookCollectionMapsPath)"
 
 		# Remove various default always seek free packages
 		# This will trump the rest of file content as it's all the way at the bottom
@@ -1125,7 +1131,7 @@ class ModcookReceiver : StdoutReceiver {
 		$permitLine = $true # Default to true in case there is something we don't handle
 
 		if ($outTxt.StartsWith("Adding package") -or $outTxt.StartsWith("Adding level") -or $outTxt.StartsWith("Adding script") -or $outTxt.StartsWith("GFx movie package")) {
-			if ($outTxt.Contains("\Mods\") -or $outTxt.Contains("\ContentForCook\")) {
+			if ($outTxt.Contains("\BuildCache\") -or $outTxt.Contains("\ContentForCook\")) {
 				$permitLine = $true
 			} else {
 				$permitLine = $false
