@@ -627,7 +627,6 @@ class BuildProject {
 		$engineIniAdditions = $this._BuildEngineIniAdditionsFromContentOptions()
 		
 		$cookOutputDir = [io.path]::combine($this.sdkPath, 'XComGame', 'Published', 'CookedPCConsole')
-		$sdkModsContentDir = [io.path]::combine($this.sdkPath, 'XComGame', 'Content', 'Mods')
 		
 		$stagingContentForCook = "$($this.stagingPath)\ContentForCook"
 		
@@ -638,11 +637,6 @@ class BuildProject {
 		if ($this.defaultEngineContentOriginal.Contains("HACKS FOR MOD ASSETS COOKING"))
 		{
 			ThrowFailure "Another cook is already in progress (DefaultEngine.ini)"
-		}
-
-		if (Test-Path "$sdkModsContentDir\*")
-		{
-			ThrowFailure "$sdkModsContentDir is not empty"
 		}
 
 		# Prepare the cook output folder
