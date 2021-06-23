@@ -648,6 +648,9 @@ class BuildProject {
 
 		$sdkContentModsDir = [io.path]::combine($this.sdkPath, 'XComGame', 'Content', 'Mods')
 		$sdkContentModsOurDir = [io.path]::combine($sdkContentModsDir, $this.modNameCanonical)
+		$sdkContentModsOurStandaloneDir = [io.path]::combine($sdkContentModsOurDir, "Standalone")
+		$sdkContentModsOurGuardDir = [io.path]::combine($sdkContentModsOurDir, "aaaaaa")
+		$sdkContentModsOurGuardPackagePath = [io.path]::combine($sdkContentModsOurGuardDir, "TEMP_DlcCookIteratorGuard_$($this.modNameCanonical).upk")
 		
 		# First, we need to check that everything is ready for us to do these shenanigans
 		# This doesn't use locks, so it can break if multiple builds are running at the same time,
@@ -701,15 +704,34 @@ class BuildProject {
 		}
 
 		# Prep the folder for the SF standalone packages
+
 		if (!(Test-Path $sdkContentModsDir)) {
 			New-Item -ItemType "directory" -Path $sdkContentModsDir
 		} else {
 			if (Test-Path $sdkContentModsOurDir) {
-				if ((Get-ChildItem -Path $sdkContentModsOurDir -Force).Length -gt 0) {
+				# If we have any files, then something is happening here - abort
+				if ((Get-ChildItem -Path $sdkContentModsOurDir -Force -File -Recurse).Length -gt 0) {
 					ThrowFailure "$sdkContentModsOurDir is already in use (not empty)"
 				}
+			}
+		}
 
-				# Just delete it to prepare for the junction
+		if ($sfStandaloneNames.Length -gt 0) {
+			if (Test-Path $sdkContentModsOurDir) {
+				# Empty folders don't matter at all - clean them up so that they don't get in the way
+				Get-ChildItem -Path $sdkContentModsOurDir -Force -Directory |
+					ForEach-Object { $_.FullName } |
+					Remove-Item -Recurse
+			} else {
+				New-Item -ItemType "directory" -Path $sdkContentModsOurDir
+			}
+
+			# Prep the guard package
+			New-Item -ItemType "directory" -Path $sdkContentModsOurGuardDir
+			Copy-Item "$global:buildCommonSelfPath\EmptyPackage" $sdkContentModsOurGuardPackagePath
+		} else {
+			if (Test-Path $sdkContentModsOurDir) {
+				# Just delete the folder so it doesn't cause any confusion
 				Remove-Item $sdkContentModsOurDir -Force -Recurse
 			}
 		}
@@ -753,7 +775,7 @@ class BuildProject {
 			New-Junction $cookOutputDir $projectCookCacheDir
 
 			# Put our standalone packages in a place where the cooker looks for them
-			if ($sfStandaloneNames.Length -gt 0) { New-Junction $sdkContentModsOurDir "$contentForCookPath/Standalone" }
+			if ($sfStandaloneNames.Length -gt 0) { New-Junction $sdkContentModsOurStandaloneDir "$contentForCookPath/Standalone" }
 
 			# Set the modified engine.ini
 			$defaultEngineContentNew | Set-Content $defaultEnginePath -NoNewline
@@ -794,11 +816,29 @@ class BuildProject {
 
 			if ($sfStandaloneNames.Length -gt 0) {
 				try {
-					Remove-Junction $sdkContentModsOurDir
-					Write-Host "Removed $sdkContentModsOurDir junction"
+					Remove-Junction $sdkContentModsOurStandaloneDir
+					Write-Host "Removed $sdkContentModsOurStandaloneDir junction"
 				}
 				catch {
-					FailureMessage "Failed to remove $sdkContentModsOurDir junction"
+					FailureMessage "Failed to remove $sdkContentModsOurStandaloneDir junction"
+					FailureMessage $_
+				}
+
+				try {
+					Remove-Item $sdkContentModsOurGuardDir -Recurse
+					Write-Host "Removed $sdkContentModsOurGuardDir folder"
+				}
+				catch {
+					FailureMessage "Failed to remove $sdkContentModsOurGuardDir folder"
+					FailureMessage $_
+				}
+
+				try {
+					Remove-Item $sdkContentModsOurDir # Important: not recursive!
+					Write-Host "Removed $sdkContentModsOurDir folder"
+				}
+				catch {
+					FailureMessage "Failed to remove $sdkContentModsOurDir folder"
 					FailureMessage $_
 				}
 			}
