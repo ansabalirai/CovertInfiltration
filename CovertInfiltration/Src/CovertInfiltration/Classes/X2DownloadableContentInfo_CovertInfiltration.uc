@@ -1826,6 +1826,32 @@ exec function CI_TestWaterworldAchievements ()
 	class'X2AchievementTracker'.static.FinalMissionOnSuccess();
 }
 
+exec function CI_SpawnStaticMeshAtCamera (string ObjectPath)
+{
+	local DynamicSMActor_Spawnable Actor;
+	local rotator CameraRotation;
+	local vector CameraLocation;
+	local StaticMesh Mesh;
+	local WorldInfo World;
+
+	Mesh = StaticMesh(DynamicLoadObject(ObjectPath, class'StaticMesh'));
+	if (Mesh == none)
+	{
+		`CI_Log(GetFuncName() @ "failed to load mesh" @ ObjectPath);
+		return;
+	}
+
+	World = class'WorldInfo'.static.GetWorldInfo();
+
+	World.GetALocalPlayerController().GetPlayerViewPoint(CameraLocation, CameraRotation);
+
+	Actor = World.Spawn(class'DynamicSMActor_Spawnable');
+	Actor.SetStaticMesh(Mesh);
+	Actor.SetLocation(CameraLocation);
+
+	`CI_log(GetFuncName() @ PathName(Actor) @ Actor.Location);
+}
+
 ///////////////
 /// Helpers ///
 ///////////////

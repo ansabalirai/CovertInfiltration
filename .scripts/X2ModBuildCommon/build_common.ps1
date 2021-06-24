@@ -639,6 +639,7 @@ class BuildProject {
 		
 		$projectCookCacheDir = [io.path]::combine($this.buildCachePath, 'PublishedCookedPCConsole')
 		$collectionMapsPath = [io.path]::combine($this.buildCachePath, 'CollectionMaps')
+		$tfcSuffix = "_$($this.modNameCanonical)_"
 		
 		$defaultEnginePath = "$($this.sdkPath)/XComGame/Config/DefaultEngine.ini"
 		$defaultEngineContentOriginal = Get-Content $defaultEnginePath | Out-String
@@ -754,8 +755,9 @@ class BuildProject {
 		$mapsToCook = $sfMapsNames + $sfCollectionMapsNames
 
 		# Prepare the command line arguments
+		# Note that we still need the -TFCSUFFIX even though -DLCName suffixes the TFCs as with only the latter using TFCs will crash at runtime (reads from base game ones?)
 		$mapsString = $mapsToCook -join " "
-		$cookFlags = "CookPackages $mapsString -skipmaps -platform=pcconsole -unattended -DLCName=$($this.modNameCanonical) -singlethread"
+		$cookFlags = "CookPackages $mapsString -skipmaps -platform=pcconsole -unattended -DLCName=$($this.modNameCanonical) -singlethread -TFCSUFFIX=$tfcSuffix"
 
 		# Prepare the output handler
 		$handler = [ModcookReceiver]::new()
@@ -868,7 +870,8 @@ class BuildProject {
 		}
 		
 		# Copy over the TFC files
-		Get-ChildItem -Path $projectCookCacheDir -Filter "*_$($this.modNameCanonical)_DLCTFC.tfc" | Copy-Item -Destination $stagingCookedDir
+		# The name of the file is extrenely long and stupid, but I'm tired of various weird behaviours, so better safe than sorry
+		Get-ChildItem -Path $projectCookCacheDir -Filter "*_$($this.modNameCanonical)_DLCTFC$tfcSuffix.tfc" | Copy-Item -Destination $stagingCookedDir
 		
 		# Copy over the maps
 		for ($i = 0; $i -lt $mapsToCook.Length; $i++) 
