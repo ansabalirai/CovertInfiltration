@@ -704,6 +704,82 @@ class BuildProject {
 			New-Item -ItemType "directory" -Path $projectCookCacheDir
 		}
 
+		# Prepare the list of maps to cook
+		$cookedMaps = @()
+		$dirtyMaps = @()
+
+		# Check the dev-made maps
+		# Not the best (doesn't take into account the dependencies) but will suffice for now
+		foreach ($map in $sfMapsNames) {
+			$cookedMaps += $map
+
+			$cookedPath = "$projectCookCacheDir\$map.upk"
+
+			if (!(Test-Path $cookedPath)) {
+				Write-Host "$map has no cached cooked version"
+				$dirtyMaps += $map
+			}
+			else {
+				$original = Get-ChildItem -Path "$contentForCookPath\Maps" -Include "$map.umap" -Recurse
+
+				if ($original.LastWriteTime -gt (Get-Item $cookedPath).LastWriteTime) {
+					$dirtyMaps += $map
+					Write-Host "$map original was updated"
+				}
+			}
+		}
+
+		# Check the collection maps
+		foreach ($mapDef in $this.contentOptions.sfCollectionMaps) {
+			$map = $mapDef.name
+			$cookedPath = "$projectCookCacheDir\$map.upk"
+
+			$cookedMaps += $map
+
+			if (!(Test-Path $cookedPath)) {
+				Write-Host "$map has no cached cooked version"
+				$dirtyMaps += $map
+			}
+			else {
+				$existingCooked = Get-Item $cookedPath
+
+				foreach ($package in $mapDef.packages) {
+					if (((Get-ChildItem -Path "$contentForCookPath\Secondary" -Include "$package.upk" -Recurse).LastWriteTime) -gt $existingCooked.LastWriteTime) {
+						Write-Host "$map dependency was updated ($package)"
+						$dirtyMaps += $map
+						break
+					}
+				}
+			}
+		}
+
+		# Dedupe for cases when collection maps are manually made
+		# Also sort for consitency and ease of reading of the command line arguments
+		$cookedMaps = $cookedMaps | Sort-Object -unique
+		$dirtyMaps = $dirtyMaps | Sort-Object -unique
+
+		# Prepare the command line arguments
+		# Note that we still need the -TFCSUFFIX even though -DLCName suffixes the TFCs as with only the latter using TFCs will crash at runtime (reads from base game ones?)
+		$mapsString = $dirtyMaps -join " "
+		$cookFlags = "CookPackages $mapsString -skipmaps -platform=pcconsole -unattended -DLCName=$($this.modNameCanonical) -singlethread -TFCSUFFIX=$tfcSuffix"
+
+		# Prepare the output handler
+		$handler = [ModcookReceiver]::new()
+		$handler.processDescr = "cooking mod packages"
+
+		# Prep the folder for the collection maps
+		# Not the most efficient approach, but there are bigger time saves to be had
+		if ($sfCollectionMapsNames.Length -gt 0) {
+			Remove-Item $collectionMapsPath -Force -Recurse -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
+			New-Item -ItemType "directory" -Path $collectionMapsPath
+
+			foreach ($map in $sfCollectionMapsNames) {
+				# Important: we cannot use .umap extension here - git lfs (if in use) gets confused during git subtree add
+				# See https://github.com/X2CommunityCore/X2ModBuildCommon/wiki/Do-not-use-.umap-for-files-in-this-repo
+				Copy-Item "$global:buildCommonSelfPath\EmptyUMap" "$collectionMapsPath\$map.umap"
+			}
+		}
+
 		# Prep the folder for the SF standalone packages
 
 		if (!(Test-Path $sdkContentModsDir)) {
@@ -736,32 +812,6 @@ class BuildProject {
 				Remove-Item $sdkContentModsOurDir -Force -Recurse
 			}
 		}
-
-		# Prep the folder for the collection maps
-		# Not the most efficient approach, but there are bigger time saves to be had
-		if ($sfCollectionMapsNames.Length -gt 0) {
-			Remove-Item $collectionMapsPath -Force -Recurse -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
-			New-Item -ItemType "directory" -Path $collectionMapsPath
-
-			foreach ($map in $sfCollectionMapsNames) {
-				# Important: we cannot use .umap extension here - git lfs (if in use) gets confused during git subtree add
-				# See https://github.com/X2CommunityCore/X2ModBuildCommon/wiki/Do-not-use-.umap-for-files-in-this-repo
-				Copy-Item "$global:buildCommonSelfPath\EmptyUMap" "$collectionMapsPath\$map.umap"
-			}
-		}
-
-		# Prepare the list of maps to cook
-		# Write-Host $sfMapsNames.GetType()
-		$mapsToCook = $sfMapsNames + $sfCollectionMapsNames
-
-		# Prepare the command line arguments
-		# Note that we still need the -TFCSUFFIX even though -DLCName suffixes the TFCs as with only the latter using TFCs will crash at runtime (reads from base game ones?)
-		$mapsString = $mapsToCook -join " "
-		$cookFlags = "CookPackages $mapsString -skipmaps -platform=pcconsole -unattended -DLCName=$($this.modNameCanonical) -singlethread -TFCSUFFIX=$tfcSuffix"
-
-		# Prepare the output handler
-		$handler = [ModcookReceiver]::new()
-		$handler.processDescr = "cooking mod packages"
 
 		# Backup the DefaultEngine.ini
 		Copy-Item $defaultEnginePath "$($this.sdkPath)/XComGame/Config/DefaultEngine.ini.bak_PRE_ASSET_COOKING"
@@ -874,9 +924,8 @@ class BuildProject {
 		Get-ChildItem -Path $projectCookCacheDir -Filter "*_$($this.modNameCanonical)_DLCTFC$tfcSuffix.tfc" | Copy-Item -Destination $stagingCookedDir
 		
 		# Copy over the maps
-		for ($i = 0; $i -lt $mapsToCook.Length; $i++) 
-		{
-			$umap = $mapsToCook[$i];
+		for ($i = 0; $i -lt $cookedMaps.Length; $i++) {
+			$umap = $cookedMaps[$i];
 			Copy-Item "$projectCookCacheDir\$umap.upk" -Destination $stagingCookedDir
 		}
 		
